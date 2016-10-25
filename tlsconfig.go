@@ -4,32 +4,37 @@ import (
 	"io/ioutil"
 	"crypto/x509"
 	"crypto/tls"
+	"errors"
 )
 
-func LoadCertificates(privateKeyFile, certificateFile, caFile string) (tls.Certificate, *x509.CertPool) {
+func LoadCertificates(privateKeyFile, certificateFile, caFile string) (tls.Certificate, *x509.CertPool, error) {
 
+	var mycert tls.Certificate
 	mycert, err := tls.LoadX509KeyPair(certificateFile, privateKeyFile)
 	if err != nil {
-		panic(err)
+		return mycert, nil, err
 	}
 
 	pem, err := ioutil.ReadFile(caFile)
 	if err != nil {
-		panic(err)
+		return mycert, nil, err
 	}
 
 	certPool := x509.NewCertPool()
 	if !certPool.AppendCertsFromPEM(pem) {
-		panic("Failed appending certs")
+		return mycert, nil, errors.New("Unable to append certs from PEM")
 	}
 
-	return mycert, certPool
+	return mycert, certPool, nil
 
 }
 
-func GetTlsConfiguration(privateKeyFile, certificateFile, caFile string) *tls.Config {
+func GetTlsConfiguration(privateKeyFile, certificateFile, caFile string) (*tls.Config, error) {
 	config := &tls.Config{}
-	mycert, certPool := LoadCertificates(privateKeyFile, certificateFile, caFile)
+	mycert, certPool, err := LoadCertificates(privateKeyFile, certificateFile, caFile)
+	if err != nil {
+		return nil, err
+	}
 	config.Certificates = make([]tls.Certificate, 1)
 	config.Certificates[0] = mycert
 
@@ -52,5 +57,5 @@ func GetTlsConfiguration(privateKeyFile, certificateFile, caFile string) *tls.Co
 
 	//Don't allow session resumption
 	config.SessionTicketsDisabled = true
-	return config
+	return config,nil
 }
